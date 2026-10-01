@@ -1,0 +1,395 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum DayKey {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum DayKind {
+  TRAIN
+  RECOVERY
+  REST
+}
+
+enum ExerciseSection {
+  WARMUP
+  MAIN
+  CORE
+  MOBILITY
+  FINISHER
+  CARDIO
+  OTHER
+}
+
+enum WorkoutStatus {
+  PENDING
+  COMPLETED
+  PARTIAL
+  SKIPPED
+  REST
+}
+
+enum MealType {
+  BREAKFAST
+  MIDMORNING
+  LUNCH
+  SNACK
+  DINNER
+  SHAKE
+}
+
+enum PenaltyKind {
+  SKIPPED
+  PARTIAL
+  INCOMPLETE
+}
+
+enum PenaltyStatus {
+  PENDING
+  REDEEMED
+  WAIVED
+}
+
+enum AchievementTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  passwordHash      String
+  name              String
+  age               Int?
+  heightCm          Int?
+  startingWeightKg  Decimal? @db.Decimal(5, 2)
+  goal              String   @default("gain_muscle")
+  points            Int      @default(0)
+  level             Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  settings          UserSettings?
+
+  workoutTemplates  WorkoutTemplate[] @relation("TemplateAuthor")
+  userPrograms      UserProgram[]
+  workoutLogs       WorkoutLog[]
+  weightLogs        WeightLog[]
+  mealLogs          MealLog[]
+  penalties         Penalty[]
+  userAchievements  UserAchievement[]
+  pointEvents       PointEvent[]
+  userProgress      UserProgress[]
+  streak            Streak?
+
+  @@index([email])
+}
+
+model UserSettings {
+  id                       String  @id @default(cuid())
+  userId                   String  @unique
+  streakCountRecoveryDays  Boolean @default(false)
+  streakFreezes            Int     @default(0)
+  restDayIsNeutral         Boolean @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WorkoutTemplate {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  description  String?
+  isOfficial   Boolean  @default(true)
+  authorId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  author       User?        @relation("TemplateAuthor", fields: [authorId], references: [id])
+  routineDays  RoutineDay[]
+  userPrograms UserProgram[]
+
+  @@index([isOfficial])
+}
+
+model RoutineDay {
+  id           String        @id @default(cuid())
+  templateId   String
+  dayIndex     Int
+  dayKey       DayKey
+  focus        String
+  durationMin  Int
+  kind         DayKind
+  notes        String?       @db.Text
+
+  template     WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  exercises    RoutineExercise[]
+
+  @@unique([templateId, dayKey])
+  @@unique([templateId, dayIndex])
+  @@index([templateId])
+}
+
+model RoutineExercise {
+  id               String          @id @default(cuid())
+  dayId            String
+  order            Int
+  name             String
+  muscleGroup      String?
+  section          ExerciseSection @default(MAIN)
+  warmup           Boolean         @default(false)
+  sets             Int?
+  reps             String?
+  tempoSeconds     String?
+  restSeconds      Int?
+  perSide          Boolean         @default(false)
+  notes            String?         @db.Text
+  progressionChainId String?
+
+  day              RoutineDay      @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  progressionChain ProgressionChain? @relation(fields: [progressionChainId], references: [id])
+  exerciseLogs     ExerciseLog[]
+
+  @@index([dayId])
+}
+
+model ProgressionChain {
+  id                String            @id @default(cuid())
+  slug              String            @unique
+  name              String
+  baseExerciseName  String
+  steps             Json
+  description       String?           @db.Text
+
+  exercises         RoutineExercise[]
+  userProgress      UserProgress[]
+}
+
+model UserProgram {
+  id          String   @id @default(cuid())
+  userId      String
+  templateId  String
+  kind        String   @default("WORKOUT")
+  startDate   DateTime @db.Date
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template    WorkoutTemplate  @relation(fields: [templateId], references: [id])
+
+  @@index([userId, isActive])
+}
+
+model WorkoutLog {
+  id                  String        @id @default(cuid())
+  userId              String
+  date                DateTime      @db.Date
+  dayKey              DayKey
+  status              WorkoutStatus
+  completedExercises  Int           @default(0)
+  totalExercises      Int           @default(0)
+  durationMin         Int?
+  notes               String?       @db.Text
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exerciseLogs        ExerciseLog[]
+  penalties           Penalty[]
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model ExerciseLog {
+  id                String   @id @default(cuid())
+  workoutLogId      String
+  routineExerciseId String?
+  exerciseName      String
+  completed         Boolean  @default(false)
+  setsDone          Json?
+  repsDoneTotal     Int?
+  variantUsed       String?
+  perSide           Boolean  @default(false)
+  notes             String?  @db.Text
+
+  workoutLog        WorkoutLog       @relation(fields: [workoutLogId], references: [id], onDelete: Cascade)
+  routineExercise   RoutineExercise? @relation(fields: [routineExerciseId], references: [id])
+
+  @@index([workoutLogId])
+}
+
+model WeightLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  weightKg  Decimal  @db.Decimal(5, 2)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model MealPlanTemplate {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  isOfficial  Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  mealDays    MealDay[]
+}
+
+model MealDay {
+  id             String           @id @default(cuid())
+  mealPlanId     String
+  dayIndex       Int
+  dayKey         DayKey
+  notes          String?          @db.Text
+
+  mealPlan       MealPlanTemplate @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  meals          Meal[]
+
+  @@unique([mealPlanId, dayKey])
+  @@index([mealPlanId])
+}
+
+model Meal {
+  id        String   @id @default(cuid())
+  mealDayId String
+  order     Int
+  type      MealType
+  name      String
+  items     String   @db.Text
+  notes     String?  @db.Text
+
+  mealDay   MealDay  @relation(fields: [mealDayId], references: [id], onDelete: Cascade)
+
+  @@index([mealDayId])
+}
+
+model MealLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  mealType  MealType
+  mealName  String
+  completed Boolean  @default(false)
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model Streak {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  currentCount       Int       @default(0)
+  longestCount       Int       @default(0)
+  lastCompletedDate  DateTime? @db.Date
+  updatedAt          DateTime  @updatedAt
+
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Penalty {
+  id            String         @id @default(cuid())
+  userId        String
+  workoutLogId  String?
+  date          DateTime       @db.Date
+  kind          PenaltyKind
+  title         String
+  detail        String?        @db.Text
+  repDebt       Int            @default(0)
+  pointsPenalty Int            @default(0)
+  status        PenaltyStatus  @default(PENDING)
+  redeemedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutLog    WorkoutLog?    @relation(fields: [workoutLogId], references: [id])
+
+  @@index([userId, status])
+  @@index([date])
+}
+
+model Achievement {
+  id           String          @id @default(cuid())
+  slug         String          @unique
+  name         String
+  description  String          @db.Text
+  icon         String?
+  tier         AchievementTier @default(BRONZE)
+  criteria     Json
+  pointsReward Int             @default(0)
+  createdAt    DateTime        @default(now())
+
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime    @default(now())
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
+
+model PointEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  points    Int
+  reason    String
+  refType   String?
+  refId     String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UserProgress {
+  id           String   @id @default(cuid())
+  userId       String
+  chainId      String
+  currentStep  Int      @default(0)
+  unlockedStep Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chain        ProgressionChain @relation(fields: [chainId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chainId])
+  @@index([userId])
+}

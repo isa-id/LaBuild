@@ -1,0 +1,18 @@
+node_modules
+.next
+out
+build
+.DS_Store
+*.pem
+npm-debug.log*
+.env
+.env*.local
+.vercel
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# No versionar los iconos generados: se regeneran con `npm run icons`
+public/icon-*.png
+public/apple-touch-icon.png
+public/favicon.ico
+public/favicon-32.png
