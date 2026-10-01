@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Toaster, useToasts } from "@/components/Toast";
+import { Icon, type IconName } from "@/components/icons";
 
 type Exercise = {
   id: string;
@@ -52,7 +53,6 @@ type Props = {
   todayMeals: { id: string; mealType: string; mealName: string; completed: boolean }[];
   pendingPenalties: number;
   weightLogsCount: number;
-  hasProfile: boolean;
   dateKeyForPrev: string;
 };
 
@@ -77,10 +77,26 @@ const MEAL_LABEL: Record<string, string> = {
   SHAKE: "Batido",
 };
 
-const KIND_META: Record<string, { label: string; color: string; emoji: string }> = {
-  TRAIN: { label: "Entrenamiento", color: "var(--accent)", emoji: "💪" },
-  RECOVERY: { label: "Recuperación", color: "var(--accent2)", emoji: "🧘" },
-  REST: { label: "Descanso", color: "var(--muted)", emoji: "😴" },
+const KIND_META: Record<string, { label: string; color: string; icon: IconName }> = {
+  TRAIN: { label: "Entrenamiento", color: "var(--accent)", icon: "dumbbell" },
+  RECOVERY: { label: "Recuperación", color: "var(--accent-2)", icon: "heart" },
+  REST: { label: "Descanso", color: "var(--muted)", icon: "moon" },
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  COMPLETED: "Cumplido",
+  PARTIAL: "Parcial",
+  SKIPPED: "Omitido",
+};
+
+/** Icono por tipo de comida. */
+const MEAL_ICON: Record<string, IconName> = {
+  BREAKFAST: "coffee",
+  MIDMORNING: "croissant",
+  LUNCH: "meal",
+  SNACK: "cookie",
+  DINNER: "soup",
+  SHAKE: "shake",
 };
 
 export default function DashboardClient(props: Props) {
@@ -162,19 +178,19 @@ export default function DashboardClient(props: Props) {
     }
 
     if (data.streak?.currentCount > 0) {
-      push(`🔥 Racha: ${data.streak.currentCount} días`, "info");
+      push(`Racha: ${data.streak.currentCount} días`, "info");
     }
 
     if (data.penalty) {
-      push(`⚖️ Penitencia: ${data.penalty.title} (+${data.penalty.repDebt} reps)`, "danger");
+      push(`Penitencia: ${data.penalty.title} (+${data.penalty.repDebt} reps)`, "danger");
     }
 
     for (const a of data.unlockedAchievements ?? []) {
-      push(`🏆 Logro: ${a.name}`, "success");
+      push(`Logro: ${a.name}`, "success");
     }
 
     for (const u of data.unlocks ?? []) {
-      push(`⬆️ Progresión: ${u.to}`, "success");
+      push(`Progresión: ${u.to}`, "success");
     }
 
     router.refresh();
@@ -215,7 +231,13 @@ export default function DashboardClient(props: Props) {
             <h1 className="text-2xl font-bold mt-0.5">Hola, {props.user.name.split(" ")[0]}</h1>
           </div>
           <div className="text-right shrink-0">
-            <div className="text-3xl">🔥</div>
+            <Icon
+              name="flame"
+              size={28}
+              strokeWidth={2.2}
+              style={{ color: "var(--orange)" }}
+              className="ml-auto mb-0.5"
+            />
             <div className="font-bold text-xl" style={{ color: "var(--accent)" }}>
               {props.streak.current}
             </div>
@@ -242,21 +264,18 @@ export default function DashboardClient(props: Props) {
           </div>
         </div>
 
-        {(props.pendingPenalties > 0 || !props.hasProfile || props.weightLogsCount === 0) && (
+        {(props.pendingPenalties > 0 || props.weightLogsCount === 0) && (
           <div className="mt-4 flex flex-wrap gap-2">
             {props.pendingPenalties > 0 && (
               <Link href="/penalties" className="chip" style={{ background: "#2a1417", color: "#fca5a5" }}>
-                ⚖️ {props.pendingPenalties} penitencia{props.pendingPenalties > 1 ? "s" : ""} pendiente{props.pendingPenalties > 1 ? "s" : ""}
+                <Icon name="scale" size={12} />
+                {props.pendingPenalties} penitencia{props.pendingPenalties > 1 ? "s" : ""} pendiente{props.pendingPenalties > 1 ? "s" : ""}
               </Link>
-            )}
-            {!props.hasProfile && (
-              <span className="chip" style={{ background: "#1d2a1f", color: "#86efac" }}>
-                📋 Completa tu perfil
-              </span>
             )}
             {props.weightLogsCount === 0 && (
               <Link href="/progress" className="chip" style={{ background: "#1a2333", color: "#7dd3fc" }}>
-                ⚖️ Registra tu peso
+                <Icon name="weight" size={12} />
+                Registra tu peso
               </Link>
             )}
           </div>
@@ -266,7 +285,13 @@ export default function DashboardClient(props: Props) {
       {/* Rutina del día */}
       <section className="card p-5">
         <div className="flex items-center gap-3 mb-1">
-          <span className="text-2xl">{props.routineDay ? KIND_META[props.routineDay.kind].emoji : "📋"}</span>
+          <Icon
+            name={props.routineDay ? KIND_META[props.routineDay.kind].icon : "clipboard"}
+            size={24}
+            strokeWidth={2}
+            style={{ color: props.routineDay ? KIND_META[props.routineDay.kind].color : "var(--muted)" }}
+            className="shrink-0"
+          />
           <div>
             <h2 className="font-bold text-lg leading-tight">
               {props.dayLabel}
@@ -292,10 +317,11 @@ export default function DashboardClient(props: Props) {
 
         {props.routineDay?.notes && (
           <p
-            className="text-sm mt-3 p-3 rounded-lg"
+            className="text-sm mt-3 p-3 rounded-lg flex gap-2"
             style={{ background: "var(--surface-2)", color: "var(--muted)" }}
           >
-            💡 {props.routineDay.notes}
+            <Icon name="bulb" size={16} className="shrink-0 mt-0.5" style={{ color: "var(--yellow)" }} />
+            {props.routineDay.notes}
           </p>
         )}
 
@@ -304,7 +330,7 @@ export default function DashboardClient(props: Props) {
             className="mt-4 p-4 rounded-lg text-center"
             style={{ background: "var(--surface-2)" }}
           >
-            <div className="text-3xl mb-1">😴</div>
+            <Icon name="moon" size={30} className="mx-auto mb-1" style={{ color: "var(--muted)" }} />
             <p className="font-semibold">Día de descanso completo</p>
             <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
               El músculo crece mientras descansas. No cuenta para la racha ni genera penitencia.
@@ -314,10 +340,11 @@ export default function DashboardClient(props: Props) {
 
         {isRecovery && !isRest && (
           <div
-            className="mt-4 p-3 rounded-lg text-sm"
+            className="mt-4 p-3 rounded-lg text-sm flex gap-2"
             style={{ background: "#12222e", color: "#7dd3fc" }}
           >
-            🧘 Día de recuperación activa. Muévete sin esfuerzo. La racha no se rompe.
+            <Icon name="heart" size={16} className="shrink-0 mt-0.5" />
+            Día de recuperación activa. Muévete sin esfuerzo. La racha no se rompe.
           </div>
         )}
 
@@ -362,8 +389,9 @@ export default function DashboardClient(props: Props) {
                       color: done[ex.id] ? "#06210f" : "transparent",
                     }}
                     aria-label={`Marcar ${ex.name}`}
+                    aria-pressed={!!done[ex.id]}
                   >
-                    ✓
+                    {done[ex.id] && <Icon name="check" size={15} strokeWidth={3} />}
                   </button>
                   <div className="flex-1 min-w-0">
                     <div
@@ -377,7 +405,12 @@ export default function DashboardClient(props: Props) {
                     </div>
                     <div className="text-[11px] flex flex-wrap gap-x-2" style={{ color: "var(--muted)" }}>
                       {ex.sets && <span>{ex.sets} × {ex.reps}</span>}
-                      {ex.tempoSeconds && <span>⏱ {ex.tempoSeconds}</span>}
+                      {ex.tempoSeconds && (
+                        <span className="inline-flex items-center gap-0.5">
+                          <Icon name="timer" size={11} />
+                          {ex.tempoSeconds}
+                        </span>
+                      )}
                       {ex.restSeconds && <span>descanso {ex.restSeconds}s</span>}
                     </div>
                     {ex.notes && (
@@ -427,7 +460,7 @@ export default function DashboardClient(props: Props) {
                     color: status === "COMPLETED" ? "#86efac" : status === "SKIPPED" ? "#fca5a5" : "#fcd34d",
                   }}
                 >
-                  Guardado: {status === "COMPLETED" ? "✓ Completo" : status === "SKIPPED" ? "✗ Omitido" : "◐ Parcial"}
+                  Guardado: {STATUS_LABEL[status] ?? status}
                 </span>
               )}
             </div>
@@ -438,14 +471,16 @@ export default function DashboardClient(props: Props) {
                 disabled={saving || mainDone === 0}
                 className="btn btn-primary"
               >
-                ✓ Cumplí
+                <Icon name="check" size={16} strokeWidth={3} />
+                Cumplí
               </button>
               <button
                 onClick={() => saveWorkout("PARTIAL")}
                 disabled={saving || mainDone === 0}
                 className="btn btn-ghost"
               >
-                ◐ Parcial
+                <Icon name="partial" size={16} />
+                Parcial
               </button>
               <button
                 onClick={() => saveWorkout("SKIPPED")}
@@ -453,7 +488,8 @@ export default function DashboardClient(props: Props) {
                 className="btn btn-ghost"
                 style={{ color: "#fca5a5" }}
               >
-                ✗ No pude
+                <Icon name="crossed" size={16} />
+                No pude
               </button>
             </div>
             {mainDone === 0 && (
@@ -468,7 +504,10 @@ export default function DashboardClient(props: Props) {
       {/* Nutrición del día */}
       {props.mealDay && (
         <section className="card p-5">
-          <h2 className="font-bold text-lg mb-1">🥗 Alimentación de hoy</h2>
+          <h2 className="font-bold text-lg mb-1 flex items-center gap-2">
+            <Icon name="salad" size={20} style={{ color: "var(--accent)" }} />
+            Alimentación de hoy
+          </h2>
           <p className="text-xs mb-4" style={{ color: "var(--muted)" }}>
             Objetivo base: 80–100 g de proteína · 4–5 comidas · 2–2.5 L de agua
           </p>
@@ -497,14 +536,24 @@ export default function DashboardClient(props: Props) {
                         color: done ? "#06210f" : "transparent",
                       }}
                     >
-                      ✓
+                      {done && <Icon name="check" size={13} strokeWidth={3} />}
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="flex items-baseline gap-2">
-                        <span className="text-xs font-bold uppercase" style={{ color: "var(--accent2)" }}>
-                          {MEAL_LABEL[m.type] ?? m.type}
+                        <span className="text-xs font-bold uppercase" style={{ color: "var(--accent-2)" }}>
+                          <Icon
+                          name={MEAL_ICON[m.type] ?? "meal"}
+                          size={12}
+                          style={{ color: "var(--accent-2)" }}
+                        />
+                        {MEAL_LABEL[m.type] ?? m.type}
                         </span>
-                        {done && <span className="text-[10px]" style={{ color: "#86efac" }}>✓ hecho</span>}
+                        {done && (
+                          <span className="text-[10px] inline-flex items-center gap-0.5" style={{ color: "#86efac" }}>
+                            <Icon name="check" size={10} strokeWidth={3} />
+                            hecho
+                          </span>
+                        )}
                       </span>
                       <span
                         className="block text-sm whitespace-pre-line mt-0.5"
@@ -520,15 +569,19 @@ export default function DashboardClient(props: Props) {
           </div>
 
           <div
-            className="mt-4 p-3 rounded-lg text-sm"
+            className="mt-4 p-3 rounded-lg text-sm flex gap-2"
             style={{ background: "#12222e", color: "#7dd3fc" }}
           >
-            🥤 <strong>Batido para subir calorías:</strong> 300 ml de leche + 1 banano + 40–60 g de
-            avena + 20–30 g de maní o crema de maní.
+            <Icon name="shake" size={16} className="shrink-0 mt-0.5" />
+            <span>
+              <strong>Batido para subir calorías:</strong> 300 ml de leche + 1 banano + 40–60 g de
+              avena + 20–30 g de maní o crema de maní.
+            </span>
           </div>
 
           <Link href="/nutrition" className="btn btn-ghost w-full mt-3 text-sm">
-            Ver plan semanal completo →
+            Ver plan semanal completo
+            <Icon name="arrowRight" size={15} />
           </Link>
         </section>
       )}

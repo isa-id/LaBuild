@@ -2,6 +2,11 @@
  * Prueba de humo end-to-end contra el servidor en ejecución.
  * Uso: npx tsx scripts/smoke-test.ts [baseUrl]
  */
+
+// Cada script de `scripts/` declara sus propias variables globales. Sin esta
+// línea, `tsc` los trata como un único archivo y reporta redeclaraciones.
+export {};
+
 const BASE = process.argv[2] ?? "http://localhost:3111";
 
 let cookie = "";
@@ -58,10 +63,19 @@ async function main() {
     return;
   }
 
-  // 2. Registro duplicado rechazado
+  // 2. Registro duplicado rechazado.
+  //    Debe incluir todos los campos obligatorios: si no, Zod lo rechaza con
+  //    400 antes de llegar al chequeo de email duplicado (409).
   r = await call("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ name: "Dup", email, password: "supersecret123" }),
+    body: JSON.stringify({
+      name: "Dup",
+      email,
+      password: "supersecret123",
+      age: 19,
+      heightCm: 175,
+      startingWeightKg: 50,
+    }),
   });
   log(r.status === 409, `Registro duplicado rechazado (${r.status})`);
 
@@ -80,15 +94,44 @@ async function main() {
   });
   log(r.status === 200 && !!cookie, `Login correcto (${r.status})`);
 
-  // 5. Validación: contraseña corta
+  // 5. Validación: contraseña corta.
+  //    Con todos los campos presentes, así el 400 viene de la contraseña y no
+  //    de un dato obligatorio que falte.
   r = await call("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ name: "X", email: `x${Date.now()}@t.dev`, password: "123" }),
+    body: JSON.stringify({
+      name: "X",
+      email: `x${Date.now()}@t.dev`,
+      password: "123",
+      age: 19,
+      heightCm: 175,
+      startingWeightKg: 50,
+    }),
   });
   log(r.status === 400, `Contraseña corta rechazada (${r.status})`);
 
+  // 5b. Validación: falta un dato obligatorio
+  r = await call("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({
+      name: "Sin Edad",
+      email: `y${Date.now()}@t.dev`,
+      password: "supersecret123",
+      heightCm: 175,
+      startingWeightKg: 50,
+    }),
+  });
+  log(r.status === 400, `Edad obligatoria ausente rechazada (${r.status})`);
+
   // 6. Páginas renderizan
-  for (const path of ["/dashboard", "/week", "/nutrition", "/progress", "/penalties"]) {
+  for (const path of [
+    "/dashboard",
+    "/week",
+    "/nutrition",
+    "/progress",
+    "/penalties",
+    "/settings",
+  ]) {
     r = await call(path);
     log(r.status === 200, `GET ${path} (${r.status})`);
   }
@@ -181,6 +224,26 @@ async function main() {
   // 16. Logout
   r = await call("/api/auth/logout", { method: "POST" });
   log(r.status === 200, `Logout (${r.status})`);
+
+  // 17. Limpieza.
+  //    Cada corrida crea una cuenta; sin borrarla, la tabla `User` se llena de
+  //    basura de pruebas. Se usa la API (no la base) para no añadir una
+  //    dependencia de Prisma a un test que habla sólo por HTTP.
+  cookie = saved;
+  r = await call("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password: "supersecret123" }),
+  });
+
+  if (r.status === 200) {
+    r = await call("/api/settings/account", {
+      method: "DELETE",
+      body: JSON.stringify({ password: "supersecret123", confirm: "BORRAR" }),
+    });
+    log(r.status === 200, `Cuenta de prueba eliminada (${r.status})`);
+  } else {
+    log(false, `No se pudo volver a iniciar sesión para limpiar (${r.status})`);
+  }
 
   console.log("\n=== Fin ===\n");
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Icon } from "@/components/icons";
 
 export default function OfflinePage() {
   return (
@@ -12,7 +13,13 @@ export default function OfflinePage() {
       }}
     >
       <div className="text-center max-w-sm">
-        <div className="text-5xl mb-3">📡</div>
+        <Icon
+          name="wifiOff"
+          size={48}
+          strokeWidth={1.6}
+          className="mx-auto mb-3"
+          style={{ color: "var(--muted)" }}
+        />
         <h1 className="text-2xl font-bold">Sin conexión</h1>
         <p className="text-sm mt-2" style={{ color: "var(--muted)" }}>
           No pudimos conectarnos al servidor. Revisa tu internet e inténtalo de nuevo.

@@ -75,16 +75,19 @@ model User {
   email             String   @unique
   passwordHash      String
   name              String
-  age               Int?
-  heightCm          Int?
-  startingWeightKg  Decimal? @db.Decimal(5, 2)
+  age               Int
+  heightCm          Int
+  startingWeightKg  Decimal  @db.Decimal(5, 2)
   goal              String   @default("gain_muscle")
   points            Int      @default(0)
   level             Int      @default(1)
+  // Foto de perfil como data URL (SVG/PNG/WebP, máx. ~300 KB).
+  avatarDataUrl     String?  @db.Text
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   settings          UserSettings?
+  resetTokens       PasswordResetToken[]
 
   workoutTemplates  WorkoutTemplate[] @relation("TemplateAuthor")
   userPrograms      UserProgram[]
@@ -110,6 +113,22 @@ model UserSettings {
   updatedAt                DateTime @updatedAt
 
   user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Token de un solo uso para restablecer la contraseña sin sesión iniciada.
+/// Guardamos el hash, nunca el token en claro.
+model PasswordResetToken {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model WorkoutTemplate {

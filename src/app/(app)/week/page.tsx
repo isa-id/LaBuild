@@ -3,16 +3,19 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getActiveRoutine } from "@/lib/routine";
 import { DAY_LABEL_ES, DAY_SHORT_ES, dateToKey } from "@/lib/dates";
+import { Icon, type IconName } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_STYLE: Record<string, { label: string; bg: string; color: string }> = {
-  COMPLETED: { label: "✓ Cumplido", bg: "#12241a", color: "#86efac" },
-  PARTIAL: { label: "◐ Parcial", bg: "#2a2212", color: "#fcd34d" },
-  SKIPPED: { label: "✗ Omitido", bg: "#241416", color: "#fca5a5" },
-  REST: { label: "😴 Descanso", bg: "var(--surface-2)", color: "var(--muted)" },
-  RECOVERY: { label: "🧘 Recuperación", bg: "#12222e", color: "#7dd3fc" },
-  PENDING: { label: "Pendiente", bg: "var(--surface-2)", color: "var(--muted)" },
+type StatusMeta = { label: string; short: string; icon: IconName; bg: string; color: string };
+
+const STATUS_STYLE: Record<string, StatusMeta> = {
+  COMPLETED: { label: "Cumplido", short: "Cumplido", icon: "checkCircle", bg: "#12241a", color: "#86efac" },
+  PARTIAL: { label: "Parcial", short: "Parcial", icon: "partial", bg: "#2a2212", color: "#fcd34d" },
+  SKIPPED: { label: "Omitido", short: "Omitido", icon: "crossed", bg: "#241416", color: "#fca5a5" },
+  REST: { label: "Descanso", short: "Descanso", icon: "moon", bg: "var(--surface-2)", color: "var(--muted)" },
+  RECOVERY: { label: "Recuperación", short: "Recuperación", icon: "heart", bg: "#12222e", color: "#7dd3fc" },
+  PENDING: { label: "Pendiente", short: "Pendiente", icon: "clock", bg: "var(--surface-2)", color: "var(--muted)" },
 };
 
 export default async function WeekPage() {
@@ -100,6 +103,7 @@ export default async function WeekPage() {
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-sm">{DAY_LABEL_ES[d.dayKey]}</span>
                   <span className="chip" style={{ background: "transparent", color: meta.color, border: `1px solid ${meta.color}44` }}>
+                    <Icon name={meta.icon} size={12} />
                     {meta.label}
                   </span>
                 </div>
@@ -150,9 +154,15 @@ export default async function WeekPage() {
                       <div className="text-[10px] font-bold" style={{ color: "var(--muted)" }}>
                         {d.dayKey}
                       </div>
-                      <div className="text-sm my-0.5">{isFuture ? "·" : meta.label.split(" ")[0]}</div>
+                      <div className="my-1 flex justify-center">
+                        {isFuture ? (
+                          <span style={{ color: "var(--muted)" }}>·</span>
+                        ) : (
+                          <Icon name={meta.icon} size={16} style={{ color: meta.color }} />
+                        )}
+                      </div>
                       <div className="text-[9px] leading-tight" style={{ color: meta.color }}>
-                        {isFuture ? "" : meta.label.slice(2).trim() || d.focus.slice(0, 10)}
+                        {isFuture ? "" : meta.short}
                       </div>
                     </div>
                   );
@@ -164,7 +174,10 @@ export default async function WeekPage() {
       </div>
 
       <div className="card p-4">
-        <h2 className="font-bold mb-3">📈 Progresión (4 semanas)</h2>
+        <h2 className="font-bold mb-3 flex items-center gap-2">
+          <Icon name="trend" size={17} style={{ color: "var(--accent)" }} />
+          Progresión (4 semanas)
+        </h2>
         <p className="text-sm" style={{ color: "var(--muted)" }}>
           Semana 1: aprende la técnica. Semana 2: +1–2 reps por serie. Semana 3: añade una serie.
           Semana 4: baja más lento o usa una variante más difícil.

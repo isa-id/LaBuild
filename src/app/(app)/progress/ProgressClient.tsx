@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Toaster, useToasts } from "@/components/Toast";
+import { Icon, type IconName } from "@/components/icons";
 
 type Props = {
   user: {
@@ -148,7 +149,10 @@ export default function ProgressClient(props: Props) {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-2xl font-bold">📈 Progreso</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Icon name="trend" size={24} style={{ color: "var(--accent)" }} />
+          Progreso
+        </h1>
         <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
           Nivel {props.user.level} · {props.user.points} puntos
         </p>
@@ -157,17 +161,40 @@ export default function ProgressClient(props: Props) {
       {/* Resumen */}
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Racha actual", value: `🔥 ${props.streak.current}`, sub: `mejor ${props.streak.longest}` },
-          { label: "Entrenamientos", value: props.stats.workoutsCompleted, sub: "completados" },
-          { label: "Logros", value: `${props.stats.achievementsEarned}/${props.stats.achievementsTotal}`, sub: "desbloqueados" },
+          {
+            label: "Racha actual",
+            value: props.streak.current,
+            sub: `mejor ${props.streak.longest}`,
+            icon: "flame" as IconName,
+            color: "var(--orange)",
+          },
+          {
+            label: "Entrenamientos",
+            value: props.stats.workoutsCompleted,
+            sub: "completados",
+            icon: "dumbbell" as IconName,
+            color: "var(--accent)",
+          },
+          {
+            label: "Logros",
+            value: `${props.stats.achievementsEarned}/${props.stats.achievementsTotal}`,
+            sub: "desbloqueados",
+            icon: "trophy" as IconName,
+            color: "var(--yellow)",
+          },
           {
             label: "Δ Peso",
             value: props.weightDelta !== null ? `${props.weightDelta > 0 ? "+" : ""}${props.weightDelta} kg` : "—",
             sub: "desde el inicio",
+            icon: "weight" as IconName,
+            color: "var(--accent-2)",
           },
         ].map((m) => (
           <div key={m.label} className="card p-3">
-            <div className="text-[11px]" style={{ color: "var(--muted)" }}>{m.label}</div>
+            <div className="flex items-center gap-1.5" style={{ color: "var(--muted)" }}>
+              <Icon name={m.icon} size={13} style={{ color: m.color }} />
+              <span className="text-[11px]">{m.label}</span>
+            </div>
             <div className="text-xl font-bold mt-0.5">{m.value}</div>
             <div className="text-[10px]" style={{ color: "var(--muted)" }}>{m.sub}</div>
           </div>
@@ -176,7 +203,10 @@ export default function ProgressClient(props: Props) {
 
       {/* Peso */}
       <section className="card p-4">
-        <h2 className="font-bold mb-3">⚖️ Seguimiento de peso</h2>
+        <h2 className="font-bold mb-3 flex items-center gap-2">
+          <Icon name="weight" size={17} style={{ color: "var(--accent)" }} />
+          Seguimiento de peso
+        </h2>
         <form onSubmit={logWeight} className="flex gap-2 mb-4">
           <input
             type="date"
@@ -226,15 +256,21 @@ export default function ProgressClient(props: Props) {
           </div>
         )}
 
-        <p className="text-xs mt-3" style={{ color: "var(--muted)" }}>
-          💡 Pésate 3–4 mañanas por semana, después del baño y antes de desayunar. Mira el promedio
-          semanal. Si en 2–3 semanas no sube, añade 1 banano + 1 vaso de leche + 30–40 g de avena.
+        <p className="text-xs mt-3 flex gap-1.5" style={{ color: "var(--muted)" }}>
+          <Icon name="bulb" size={14} className="shrink-0 mt-0.5" style={{ color: "var(--yellow)" }} />
+          <span>
+            Pésate 3–4 mañanas por semana, después del baño y antes de desayunar. Mira el promedio
+            semanal. Si en 2–3 semanas no sube, añade 1 banano + 1 vaso de leche + 30–40 g de avena.
+          </span>
         </p>
       </section>
 
       {/* Progresión */}
       <section className="card p-4">
-        <h2 className="font-bold mb-1">⬆️ Progresión de ejercicios</h2>
+        <h2 className="font-bold mb-1 flex items-center gap-2">
+          <Icon name="arrowUp" size={17} style={{ color: "var(--accent)" }} />
+          Progresión de ejercicios
+        </h2>
         <p className="text-xs mb-3" style={{ color: "var(--muted)" }}>
           Sin pesas, subimos de variante. Cada bloque de sesiones completadas desbloquea el siguiente nivel.
         </p>
@@ -262,7 +298,13 @@ export default function ProgressClient(props: Props) {
                         }}
                         title={s}
                       >
-                        {current ? "▶ " : unlocked ? "✓ " : "🔒 "}
+                        {current ? (
+                          <Icon name="play" size={11} />
+                        ) : unlocked ? (
+                          <Icon name="check" size={11} strokeWidth={3} />
+                        ) : (
+                          <Icon name="lock" size={11} />
+                        )}
                         {s}
                       </span>
                     );
@@ -276,7 +318,10 @@ export default function ProgressClient(props: Props) {
 
       {/* Logros */}
       <section className="card p-4">
-        <h2 className="font-bold mb-3">🏆 Logros</h2>
+        <h2 className="font-bold mb-3 flex items-center gap-2">
+          <Icon name="trophy" size={17} style={{ color: "var(--yellow)" }} />
+          Logros
+        </h2>
         <div className="grid gap-2 sm:grid-cols-2">
           {props.achievements.map((a) => {
             const meta = TIER_META[a.tier] ?? TIER_META.BRONZE;
@@ -291,7 +336,11 @@ export default function ProgressClient(props: Props) {
                 }}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{a.earned ? "🏅" : "🔒"}</span>
+                  <Icon
+                    name={a.earned ? "medal" : "lock"}
+                    size={18}
+                    style={{ color: a.earned ? meta.color : "var(--muted)" }}
+                  />
                   <span className="font-bold text-sm">{a.name}</span>
                   <span className="chip" style={{ background: "transparent", color: meta.color, border: `1px solid ${meta.color}44` }}>
                     {meta.label}
@@ -313,7 +362,10 @@ export default function ProgressClient(props: Props) {
 
       {/* Historial de puntos */}
       <section className="card p-4">
-        <h2 className="font-bold mb-3">🪙 Historial de puntos</h2>
+        <h2 className="font-bold mb-3 flex items-center gap-2">
+          <Icon name="coins" size={17} style={{ color: "var(--yellow)" }} />
+          Historial de puntos
+        </h2>
         {props.pointEvents.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--muted)" }}>Sin movimientos todavía.</p>
         ) : (

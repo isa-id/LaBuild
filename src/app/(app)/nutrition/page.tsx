@@ -1,18 +1,49 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getActiveMealPlan } from "@/lib/routine";
-import { DAY_LABEL_ES, DAY_SHORT_ES, dayKeyFromDate, todayKey } from "@/lib/dates";
+import { dayKeyFromDate, todayKey } from "@/lib/dates";
+import { Icon, type IconName } from "@/components/icons";
+import MealPlanClient from "./MealPlanClient";
 
 export const dynamic = "force-dynamic";
 
-const MEAL_LABEL: Record<string, string> = {
-  BREAKFAST: "Desayuno",
-  MIDMORNING: "Media mañana",
-  LUNCH: "Almuerzo",
-  SNACK: "Merienda",
-  DINNER: "Cena",
-  SHAKE: "Batido",
-};
+/** Metas diarias del plan. */
+const DAILY_GOALS: { label: string; value: string; icon: IconName; color: string }[] = [
+  { label: "Proteína", value: "80–100 g", icon: "beef", color: "var(--danger)" },
+  { label: "Comidas", value: "4–5", icon: "meal", color: "var(--accent)" },
+  { label: "Agua", value: "2–2.5 L", icon: "water", color: "var(--accent-2)" },
+  { label: "Frutas", value: "2–3", icon: "apple", color: "var(--orange)" },
+];
+
+type Group = { title: string; icon: IconName; color: string; items: string[] };
+
+/** Compra semanal: grupos de alimentos básicos y económicos. */
+const GROUPS: Group[] = [
+  {
+    title: "Proteínas",
+    icon: "beef",
+    color: "var(--danger)",
+    items: ["Huevos", "Pollo", "Atún", "Carne molida", "Leche", "Yogur", "Queso", "Lentejas", "Fríjoles"],
+  },
+  {
+    title: "Carbohidratos",
+    icon: "cookie",
+    color: "var(--yellow)",
+    items: ["Arroz", "Avena", "Papa", "Plátano", "Arepas", "Pan"],
+  },
+  {
+    title: "Grasas",
+    icon: "apple",
+    color: "var(--orange)",
+    items: ["Maní", "Aguacate", "Aceite"],
+  },
+  {
+    title: "Frutas",
+    icon: "apple",
+    color: "var(--pink)",
+    items: ["Banano", "Papaya", "Mango", "Mandarina", "Manzana"],
+  },
+];
 
 export default async function NutritionPage() {
   const user = await getCurrentUser();
@@ -27,117 +58,122 @@ export default async function NutritionPage() {
     );
   }
 
-  const today = todayKey();
-  const todayDayKey = dayKeyFromDate(new Date(`${today}T00:00:00Z`));
+  const todayDate = todayKey();
+  const todayDayKey = dayKeyFromDate(new Date(`${todayDate}T00:00:00Z`));
 
-  const groups: { title: string; items: { name: string; detail?: string }[] }[] = [
-    {
-      title: "🥩 Proteínas",
-      items: [
-        { name: "Huevos" },
-        { name: "Pollo" },
-        { name: "Atún" },
-        { name: "Carne molida" },
-        { name: "Leche" },
-        { name: "Yogur" },
-        { name: "Queso" },
-        { name: "Lentejas" },
-        { name: "Fríjoles" },
-      ],
-    },
-    {
-      title: "🍚 Carbohidratos",
-      items: [{ name: "Arroz" }, { name: "Avena" }, { name: "Papa" }, { name: "Plátano" }, { name: "Arepas" }, { name: "Pan" }],
-    },
-    {
-      title: "🥑 Grasas",
-      items: [{ name: "Maní" }, { name: "Aguacate" }, { name: "Aceite" }],
-    },
-    {
-      title: "🍎 Frutas",
-      items: [{ name: "Banano" }, { name: "Papaya" }, { name: "Mango" }, { name: "Mandarina" }, { name: "Manzana" }],
-    },
-  ];
+  // IMC del usuario actual, no los valores fijos de la nota de abajo.
+  const heightM = user.heightCm / 100;
+  const bmi = heightM > 0 ? Number(user.startingWeightKg) / (heightM * heightM) : 0;
+  const bmiLow = bmi > 0 && bmi < 18.5;
 
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-2xl font-bold">{plan.name}</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Icon name="salad" size={24} style={{ color: "var(--accent)" }} />
+          {plan.name}
+        </h1>
         <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
           {plan.description}
         </p>
       </header>
 
+      {/* Objetivo diario */}
       <section className="card p-4">
-        <h2 className="font-bold mb-3">Objetivo diario</h2>
+        <h2 className="font-bold mb-3 flex items-center gap-2">
+          <Icon name="target" size={17} style={{ color: "var(--accent)" }} />
+          Objetivo diario
+        </h2>
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Proteína", value: "80–100 g", emoji: "🥩" },
-            { label: "Comidas", value: "4–5", emoji: "🍽️" },
-            { label: "Agua", value: "2–2.5 L", emoji: "💧" },
-            { label: "Frutas", value: "2–3", emoji: "🍎" },
-          ].map((m) => (
-            <div key={m.label} className="p-3 rounded-lg text-center" style={{ background: "var(--surface-2)" }}>
-              <div className="text-xl mb-1">{m.emoji}</div>
-              <div className="font-bold text-sm">{m.value}</div>
+          {DAILY_GOALS.map((g) => (
+            <div
+              key={g.label}
+              className="p-3 rounded-lg text-center"
+              style={{ background: "var(--surface-2)" }}
+            >
+              <Icon
+                name={g.icon}
+                size={22}
+                className="mx-auto mb-1"
+                style={{ color: g.color }}
+              />
+              <div className="font-bold text-sm">{g.value}</div>
               <div className="text-[11px]" style={{ color: "var(--muted)" }}>
-                {m.label}
+                {g.label}
               </div>
             </div>
           ))}
         </div>
-        <div className="mt-3 p-3 rounded-lg text-sm" style={{ background: "#12222e", color: "#7dd3fc" }}>
-          🥤 <strong>Batido casero:</strong> 300 ml leche + 1 banano + 40–60 g avena + 20–30 g maní.
-          Útil si te cuesta comer suficiente.
+
+        <div
+          className="mt-3 p-3 rounded-lg text-sm flex gap-2"
+          style={{ background: "#12222e", color: "#7dd3fc" }}
+        >
+          <Icon name="shake" size={17} className="shrink-0 mt-0.5" />
+          <span>
+            <strong>Batido casero:</strong> 300 ml leche + 1 banano + 40–60 g avena + 20–30 g maní.
+            Útil si te cuesta comer suficiente.
+          </span>
         </div>
       </section>
 
-      <section className="space-y-4">
-        <h2 className="font-bold">Plan de 7 días</h2>
-        {plan.mealDays.map((md) => {
-          const isToday = md.dayKey === todayDayKey;
-          return (
-            <div
-              key={md.id}
-              className="card p-4"
-              style={{ borderColor: isToday ? "var(--accent)" : "var(--border)" }}
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <h3 className="font-bold">{DAY_LABEL_ES[md.dayKey]}</h3>
-                {isToday && (
-                  <span className="chip" style={{ background: "#12241a", color: "#86efac" }}>
-                    Hoy
-                  </span>
-                )}
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {md.meals.map((m) => (
-                  <div key={m.id} className="p-3 rounded-lg" style={{ background: "var(--surface-2)" }}>
-                    <div className="text-[11px] font-bold uppercase" style={{ color: "var(--accent2)" }}>
-                      {MEAL_LABEL[m.type] ?? m.type}
-                    </div>
-                    <div className="text-sm mt-1 whitespace-pre-line">{m.items}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
+      {/* Plan por días, ahora interactivo */}
+      <section className="space-y-3">
+        <h2 className="font-bold flex items-center gap-2">
+          <Icon name="calendar" size={17} style={{ color: "var(--accent)" }} />
+          Plan de 7 días
+        </h2>
+
+        <MealPlanClient
+          mealDays={plan.mealDays.map((md) => ({
+            id: md.id,
+            dayKey: md.dayKey,
+            dayIndex: md.dayIndex,
+            notes: md.notes,
+            meals: md.meals.map((m) => ({
+              id: m.id,
+              order: m.order,
+              type: m.type,
+              name: m.name,
+              items: m.items,
+              notes: m.notes,
+            })),
+          }))}
+          todayDayKey={todayDayKey}
+          todayDate={todayDate}
+        />
       </section>
 
+      {/* Compra semanal */}
       <section className="card p-4">
-        <h2 className="font-bold mb-1">🛒 Compra semanal económica</h2>
+        <h2 className="font-bold mb-1 flex items-center gap-2">
+          <Icon name="list" size={17} style={{ color: "var(--accent)" }} />
+          Compra semanal económica
+        </h2>
         <p className="text-xs mb-4" style={{ color: "var(--muted)" }}>
           No necesitas productos "fitness" caros.
         </p>
+
         <div className="grid gap-3 sm:grid-cols-2">
-          {groups.map((g) => (
+          {GROUPS.map((g) => (
             <div key={g.title} className="p-3 rounded-lg" style={{ background: "var(--surface-2)" }}>
-              <h3 className="font-bold text-sm mb-2">{g.title}</h3>
+              <h3 className="font-bold text-sm mb-2 flex items-center gap-1.5">
+                <Icon name={g.icon} size={14} style={{ color: g.color }} />
+                {g.title}
+              </h3>
               <div className="flex flex-wrap gap-1.5">
-                {g.items.map((i) => (
-                  <span key={i.name} className="chip" style={{ background: "var(--surface)", color: "var(--muted)", border: "1px solid var(--border)" }}>
-                    {i.name}
+                {g.items.map((item) => (
+                  <span
+                    key={item}
+                    className="chip"
+                    style={{
+                      background: "var(--surface)",
+                      color: "var(--muted)",
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    {item}
                   </span>
                 ))}
               </div>
@@ -146,19 +182,47 @@ export default async function NutritionPage() {
         </div>
       </section>
 
+      {/* Cómo saber si comes suficiente */}
       <section className="card p-4">
-        <h2 className="font-bold mb-2">📈 ¿Cómo saber si comes suficiente?</h2>
+        <h2 className="font-bold mb-2 flex items-center gap-2">
+          <Icon name="bulb" size={17} style={{ color: "var(--yellow)" }} />
+          ¿Cómo saber si comes suficiente?
+        </h2>
+
         <ol className="text-sm space-y-1.5 list-decimal list-inside" style={{ color: "var(--muted)" }}>
           <li>Pésate 3–4 mañanas por semana, después del baño y antes de desayunar.</li>
           <li>Mira el promedio semanal, no un solo día.</li>
-          <li>Si en 2–3 semanas el peso no sube, añade 1 banano + 1 vaso de leche + 30–40 g de avena.</li>
+          <li>
+            Si en 2–3 semanas el peso no sube, añade 1 banano + 1 vaso de leche + 30–40 g de avena.
+          </li>
           <li>Si subes demasiado rápido, reduce un poco las cantidades.</li>
           <li>Duerme 7–9 horas y mantén la progresión del entrenamiento.</li>
         </ol>
-        <div className="mt-3 p-3 rounded-lg text-sm" style={{ background: "#2a2212", color: "#fcd34d" }}>
-          ⚠️ <strong>Nota:</strong> con 50 kg y 1,75 m tu IMC es ~16.3. Si ese peso no es
-          intencional o perdiste peso recientemente, consulta con un médico o nutricionista antes de
-          aumentar mucho las calorías. Esta app no sustituye opinión profesional.
+
+        <div
+          className="mt-3 p-3 rounded-lg text-sm flex gap-2"
+          style={{
+            background: bmiLow ? "#2a2212" : "#12241a",
+            color: bmiLow ? "#fcd34d" : "#86efac",
+          }}
+        >
+          <Icon name="warning" size={17} className="shrink-0 mt-0.5" />
+          <span>
+            {bmiLow ? (
+              <>
+                <strong>Nota:</strong> tu IMC es ~{bmi.toFixed(1)}. Está por debajo del rango de
+                referencia para adultos. Si ese peso no es intencional o perdiste peso
+                recientemente, consulta con un médico o nutricionista antes de aumentar mucho las
+                calorías. Esta app no sustituye opinión profesional.
+              </>
+            ) : (
+              <>
+                <strong>Nota:</strong> tu IMC es ~{bmi.toFixed(1)}. Mantén la progresión del
+                entrenamiento y ajusta las calorías según cómo responda el peso semanal. Esta app no
+                sustituye opinión profesional.
+              </>
+            )}
+          </span>
         </div>
       </section>
     </div>

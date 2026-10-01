@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Icon } from "./icons";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -104,14 +105,26 @@ export default function PwaRegistrar() {
         }}
       >
         <div className="flex items-start gap-3">
-          <span className="text-2xl leading-none mt-0.5">📲</span>
+          <Icon
+            name="smartphone"
+            size={22}
+            strokeWidth={1.8}
+            className="shrink-0 mt-0.5"
+            style={{ color: "var(--accent)" }}
+          />
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-sm">Instala LaBuild</h3>
             {showIOSHint ? (
               <>
                 <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
                   Toca el botón de compartir{" "}
-                  <span aria-label="Compartir">􀈂</span> y luego{" "}
+                  <Icon
+                    name="share"
+                    size={12}
+                    className="inline align-[-2px]"
+                    style={{ color: "var(--accent-2)" }}
+                  />{" "}
+                  y luego{" "}
                   <strong style={{ color: "var(--text)" }}>&quot;Añadir a pantalla de inicio&quot;</strong>.
                 </p>
               </>

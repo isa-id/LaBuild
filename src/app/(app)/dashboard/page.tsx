@@ -109,7 +109,6 @@ export default async function DashboardPage() {
       }))}
       pendingPenalties={penalties}
       weightLogsCount={weightCount}
-      hasProfile={Boolean(user.age && user.heightCm && user.startingWeightKg)}
       dateKeyForPrev={dateToKey(new Date(Date.now() - 86400000))}
     />
   );

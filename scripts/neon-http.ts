@@ -11,15 +11,64 @@ import { readFileSync, existsSync } from "fs";
  * con normalidad.
  */
 
-/** Quita los comentarios `--` y separa el script en sentencias individuales. */
+/**
+ * Quita los comentarios `--` y separa el script en sentencias individuales.
+ *
+ * No basta con partir por `;`: un bloque `DO $$ ... $$` (plpgsql) contiene
+ * punto y comas internas y hay que dejarlo entero, así que se salta de
+ * dollar-quote a dollar-quote sin mirar los `;` de dentro.
+ */
 export function splitStatements(sql: string): string[] {
-  return sql
+  // 1. Elimina comentarios de línea completa, conservando el resto.
+  const withoutComments = sql
     .split("\n")
     .filter((line) => !line.trim().startsWith("--"))
-    .join("\n")
-    .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+    .join("\n");
+
+  const out: string[] = [];
+  let current = "";
+  let dollarTag: string | null = null;
+
+  // 2. Recorre carácter a carácter respetando `$tag$ ... $tag$`.
+  for (let i = 0; i < withoutComments.length; i++) {
+    const char = withoutComments[i];
+
+    if (dollarTag) {
+      // Dentro del bloque: sólo importa encontrar el cierre.
+      if (withoutComments.startsWith(dollarTag, i)) {
+        current += dollarTag;
+        i += dollarTag.length - 1;
+        dollarTag = null;
+      } else {
+        current += char;
+      }
+      continue;
+    }
+
+    // `$tag$` abre un dollar-quote. La etiqueta admite letras, dígitos y `_`.
+    const match = /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/.exec(withoutComments.slice(i));
+
+    if (match) {
+      dollarTag = match[0];
+      current += dollarTag;
+      i += dollarTag.length - 1;
+      continue;
+    }
+
+    if (char === ";") {
+      const trimmed = current.trim();
+      if (trimmed) out.push(trimmed);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  const tail = current.trim();
+  if (tail) out.push(tail);
+
+  return out;
 }
 
 export type NeonClient = {

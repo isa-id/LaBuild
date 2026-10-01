@@ -128,17 +128,48 @@ endpoint HTTP en el 443 que habla el mismo SQL, así que el proyecto trae una
 ruta alternativa que no necesita el 5432:
 
 ```bash
-npm run db:push:http    # aplica el esquema por https://<host>/sql
-npm run db:seed:http    # carga la rutina y el plan alimentario por HTTP
+npm run db:push:http    # crea el esquema desde cero (base vacía)
+npm run db:seed:http    # carga la rutina y el plan alimentario
 ```
 
 `db:push:http` genera el DDL con `prisma migrate diff` (que no necesita
 conexión) y lo aplica sentencia por sentencia. Antes de tocar nada comprueba
 si el esquema ya existe, así que es seguro de repetir.
 
+**`db:push:http` es sólo para una base vacía.** Cuando ya hay datos y hay que
+añadir una columna, poner `NOT NULL` o crear una tabla, usa
+`db:migrate:http` con un archivo en `migrations/`: son sentencias
+incrementales idempotentes (`IF NOT EXISTS`), pensadas para reintentarse.
+
+```bash
+npm run db:migrate:http -- migrations/001-cuenta-avatar-reset.sql
+```
+
+Dos detalles que no son evidentes:
+
+- El particionado de sentencias respeta los bloques `DO $$ ... $$` de plpgsql.
+  Un `split(";")` ingenuo los parte por los `;` internos y Postgres responde
+  `unterminated dollar-quoted string`.
+- `CREATE TABLE IF NOT EXISTS` omite la clave foránea si la tabla ya existía,
+  por eso la migración la añade aparte dentro de un `DO $$`.
+
 **Esto sólo aplica a tu máquina.** La app en Vercel conecta por 5432 con
 normalidad: Vercel no bloquea ese puerto. Si el error aparece en producción, no
 es este problema.
+
+#### Correr la app en local con el 5432 bloqueado
+
+Lo anterior resuelve los scripts de esquema y seed, pero `npm run dev` también
+necesita leer y escribir en la base. Con el 5432 cerrado, `src/lib/prisma.ts`
+acepta cambiar al adaptador HTTP de Neon:
+
+```env
+# en tu .env local, NO en Vercel
+LABUILD_HTTP_DB=1
+```
+
+Es el mismo SQL sobre otro transporte. En cuanto la variable está activa,
+`npm run dev` y los tests funcionan contra Neon sin tocar el firewall.
 
 #### Vercel y `DIRECT_URL`
 
@@ -214,6 +245,60 @@ baño y antes de desayunar. La app promedia la semana y calcula el IMC.
 
 Cumplir la penitencia devuelve **+15 puntos**.
 
+### Configuración de la cuenta
+
+`/settings` agrupa cuatro secciones:
+
+| Sección | Qué hace |
+| --- | --- |
+| Perfil | Cambia nombre, email, edad, altura, peso de inicio y objetivo |
+| Foto de perfil | Sube o quita una imagen |
+| Contraseña | Cambia la contraseña confirmando la actual |
+| Zona peligrosa | Borra la cuenta y todo su historial |
+
+Detalles que conviene conocer:
+
+- **La foto se guarda como data URL dentro de Postgres**, no en un servicio de
+  archivos. Se redimensiona en el navegador a 256×256 px y se guarda en JPEG al
+  85 % antes de subirla, así que ocupa ~20-40 KB en vez de varios MB. El límite
+  del servidor es 300 KB y sólo se aceptan PNG, JPEG, WebP o SVG.
+- **Cambiar la contraseña pide la actual.** Así, si alguien se apodera de una
+  sesión, no puede dejarte la cuenta sin acceso.
+- **Borrar la cuenta pide la contraseña y que escribas `BORRAR`.** Todas las
+  relaciones están en `onDelete: Cascade`, así que una sola llamada limpia
+  entrenamientos, comidas, peso, rachas, penitencias y logros.
+- **El registro exige todos los campos** (nombre, email, contraseña, edad,
+  altura y peso). Son obligatorios en el esquema (`NOT NULL`), no sólo en el
+  formulario. La validación vive en `registerSchema` y el formulario replica los
+  mismos rangos para no bloquearte la salida del servidor.
+
+### Iconos
+
+No hay emojis en la interfaz. Todo sale de `src/components/icons.tsx`, un
+registro central sobre [Lucide](https://lucide.dev):
+
+```tsx
+import { Icon } from "@/components/icons";
+
+<Icon name="flame" size={18} style={{ color: "var(--accent)" }} />
+```
+
+Lucide genera `<svg>` en línea con `currentColor`, así que los iconos heredan el
+color del texto, no pesan fuentes ni hacen peticiones extra.
+
+Un matiz honesto: el registro central referencia los ~66 iconos, y como cada uno
+es alcanzable desde ahí, **todos** entran al bundle aunque una pantalla use
+cuatro. Pesarían mucho más si fueran emoji renderizados por el sistema, pero no
+es *tree shaking* real. Si el bundle creciera, el siguiente paso sería importar
+el icono directamente en cada componente en vez de pasar por el registro; el
+registro se paga en comodidad, no en peso.
+
+Para comprobar que no se coló un emoji:
+
+```bash
+npx tsx scripts/find-emojis.ts
+```
+
 ---
 
 ## Desarrollo local
@@ -245,22 +330,29 @@ npm run dev     # http://localhost:3000
 ### Tests
 
 ```bash
-npm test            # lógica de rachas y penitencias (necesita BD)
-npm run test:pwa    # recursos PWA (necesita servidor en marcha)
-npm run test:e2e    # smoke test HTTP completo (necesita servidor en marcha)
+npm test              # lógica de rachas y penitencias (necesita BD)
+npm run test:dates    # funciones de fecha (no necesita nada)
+npm run test:pwa      # recursos PWA (necesita servidor en marcha)
+npm run test:e2e      # smoke test HTTP completo (necesita servidor en marcha)
+npm run test:settings # perfil, foto, contraseña y borrado (idem)
 ```
 
-Contra Neon, si el 5432 está bloqueado, el test de rachas necesita el mismo
-truco. Levanta el servidor con la variable `DATABASE_URL` y el test corre
-igual, porque la app en runtime siempre usa 5432.
+Contra Neon con el 5432 bloqueado, todo funciona igual definiendo
+`LABUILD_HTTP_DB=1` en tu `.env`, tanto para el servidor como para los tests
+que hablan con la base (`npm test`).
 
-Los tests de PWA y e2e esperan un servidor en `http://localhost:3000` salvo que
-les pases otra URL:
+Los tests de PWA, e2e y de configuración esperan un servidor en marcha salvo
+que les pases otra URL:
 
 ```bash
-npm run dev -- -p 3113
-npm run test:pwa -- http://localhost:3113
+LABUILD_HTTP_DB=1 npm run dev -- -p 3113
+npm run test:pwa      -- http://localhost:3113
+npm run test:e2e      -- http://localhost:3113
+npm run test:settings -- http://localhost:3113
 ```
+
+`test:settings` crea una cuenta temporal, recorre perfil, foto, contraseña,
+restablecimiento y borrado, y la elimina al final. No toca cuentas reales.
 
 ---
 
@@ -270,6 +362,8 @@ npm run test:pwa -- http://localhost:3113
 prisma/
   schema.prisma        Modelos de datos
   seed.ts              Rutina + plan alimentario + logros (idempotente)
+migrations/
+  001-*.sql            Cambios incrementales de esquema (ver más abajo)
 public/
   manifest.json        Web App Manifest
   sw.js                Service Worker
@@ -277,24 +371,30 @@ public/
 src/
   app/
     (auth)/            Login y registro
-    (app)/             Dashboard, Semana, Nutrición, Progreso, Penitencias
+    (app)/             Dashboard, Semana, Nutrición, Progreso, Penitencias,
+                       Configuración
     offline/           Página sin conexión
+    reset-password/    Aplicar una nueva contraseña con token
     api/               Route Handlers
   components/
     NavBar.tsx         Sidebar en escritorio, barra inferior en móvil
     PwaRegistrar.tsx   Registro del SW e instalación
     Toast.tsx          Notificaciones
+    icons.tsx          Registro central de iconos SVG
   lib/
     auth.ts            Sesión JWT
-    password.ts        Hash scrypt
+    password.ts        Hash scrypt + hash de tokens
     streak.ts          Cálculo de rachas
     penalties.ts       Reglas de penitencias
     gamification.ts    Puntos, niveles y logros
     progression.ts     Desbloqueo de variantes
     dates.ts           Utilidades de fecha
 scripts/
+  migrate-http.ts      Aplica migraciones incrementales por HTTP
+  find-emojis.ts       Auditoría: lista emojis que queden en el código
   generate-icons.ts    Genera iconos PNG/ICO desde SVG
   smoke-test.ts        Prueba end-to-end por HTTP
+  settings-test.ts     Prueba end-to-end del módulo de configuración
   streak-test.ts       Pruebas de la lógica de rachas
   pwa-test.ts          Verificación de recursos PWA
   neon-http.ts         Cliente SQL de Neon por HTTP (puerto 443)

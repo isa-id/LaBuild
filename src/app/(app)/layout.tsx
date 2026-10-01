@@ -13,7 +13,12 @@ export default async function AppLayout({
 
   return (
     <div>
-      <NavBar points={user.points} level={user.level} />
+      <NavBar
+        points={user.points}
+        level={user.level}
+        name={user.name}
+        avatarDataUrl={user.avatarDataUrl}
+      />
       <main className="lg:pl-60 pb-28 lg:pb-10">
         <div className="max-w-5xl mx-auto px-4 py-6">{children}</div>
       </main>

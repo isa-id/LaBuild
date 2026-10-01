@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Toaster, useToasts } from "@/components/Toast";
+import { Icon } from "@/components/icons";
 
 type Penalty = {
   id: string;
@@ -47,11 +48,11 @@ export default function PenaltiesClient({ penalties, summary }: Props) {
 
     const d = await res.json();
     push(
-      action === "redeem" ? "✅ Penitencia cumplida. +15 puntos" : "Penitencia perdonada",
+      action === "redeem" ? "Penitencia cumplida. +15 puntos" : "Penitencia perdonada",
       "success"
     );
     for (const a of d.unlockedAchievements ?? []) {
-      push(`🏆 Logro: ${a.name}`, "success");
+      push(`Logro: ${a.name}`, "success");
     }
     router.refresh();
   }
@@ -59,7 +60,10 @@ export default function PenaltiesClient({ penalties, summary }: Props) {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-2xl font-bold">⚖️ Penitencias</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Icon name="scale" size={24} style={{ color: "var(--warning)" }} />
+          Penitencias
+        </h1>
         <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
           Si no cumples un día de entrenamiento, se genera una deuda de repeticiones.
           Cúmplela para recuperarte y ganar puntos extra.
@@ -68,21 +72,21 @@ export default function PenaltiesClient({ penalties, summary }: Props) {
 
       <section className="grid grid-cols-3 gap-3">
         <div className="card p-4 text-center">
-          <div className="text-2xl">📋</div>
+          <Icon name="clipboard" size={22} className="mx-auto mb-1" style={{ color: "var(--muted)" }} />
           <div className="text-xl font-bold" style={{ color: summary.pending ? "#fca5a5" : "var(--text)" }}>
             {summary.pending}
           </div>
           <div className="text-[11px]" style={{ color: "var(--muted)" }}>Pendientes</div>
         </div>
         <div className="card p-4 text-center">
-          <div className="text-2xl">🔁</div>
+          <Icon name="repeat" size={22} className="mx-auto mb-1" style={{ color: "var(--warning)" }} />
           <div className="text-xl font-bold" style={{ color: "var(--warning)" }}>
             {summary.totalRepDebt}
           </div>
           <div className="text-[11px]" style={{ color: "var(--muted)" }}>Reps por hacer</div>
         </div>
         <div className="card p-4 text-center">
-          <div className="text-2xl">✅</div>
+          <Icon name="checkCircle" size={22} className="mx-auto mb-1" style={{ color: "var(--accent)" }} />
           <div className="text-xl font-bold" style={{ color: "var(--accent)" }}>
             {summary.redeemed}
           </div>
@@ -104,7 +108,12 @@ export default function PenaltiesClient({ penalties, summary }: Props) {
 
       {penalties.length === 0 ? (
         <section className="card p-8 text-center">
-          <div className="text-4xl mb-2">✨</div>
+          <Icon
+            name="sparkles"
+            size={38}
+            className="mx-auto mb-2"
+            style={{ color: "var(--accent)" }}
+          />
           <p className="font-semibold">Sin penitencias</p>
           <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
             Mantén tu racha para que siga así.
@@ -152,7 +161,8 @@ export default function PenaltiesClient({ penalties, summary }: Props) {
                       disabled={busy === p.id}
                       className="btn btn-primary text-sm flex-1"
                     >
-                      ✓ Ya la cumplí (+15 pts)
+                      <Icon name="check" size={15} strokeWidth={3} />
+                      Ya la cumplí (+15 pts)
                     </button>
                     <button
                       onClick={() => act(p.id, "waive")}

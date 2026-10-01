@@ -10,6 +10,7 @@
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:push:http": "tsx scripts/db-push-http.ts",
+    "db:migrate:http": "tsx scripts/migrate-http.ts",
     "db:seed:http": "tsx prisma/seed.ts --http",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
@@ -17,8 +18,10 @@
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "icons": "tsx scripts/generate-icons.ts",
     "test": "tsx scripts/streak-test.ts",
+    "test:dates": "tsx scripts/dates-test.ts",
     "test:pwa": "tsx scripts/pwa-test.ts",
     "test:e2e": "tsx scripts/smoke-test.ts",
+    "test:settings": "tsx scripts/settings-test.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -30,6 +33,7 @@
     "@prisma/client": "^6.1.0",
     "dotenv": "^18.0.5",
     "jose": "^5.9.6",
+    "lucide-react": "^1.49.0",
     "next": "^15.1.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

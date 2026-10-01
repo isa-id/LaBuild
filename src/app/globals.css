@@ -26,7 +26,7 @@
   --color-ink: var(--text);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
-  --color-accent2: var(--accent2);
+  --color-accent2: var(--accent-2);
   --color-danger: var(--danger);
   --color-warning: var(--warning);
 }
