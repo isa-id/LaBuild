@@ -98,17 +98,55 @@ git clone https://github.com/TU_USUARIO/labuild.git
 cd labuild
 npm install
 
-# Copia las mismas 3 variables de entorno que configuraste en Vercel
-# (puedes definirlas en la sesión o en un .env.local)
+# Copia las mismas variables que configuraste en Vercel.
+# Si tu red abre el puerto 5432:
 $env:DATABASE_URL="postgresql://...-pooler.../db?sslmode=require"
 $env:DIRECT_URL="postgresql://.../db?sslmode=require"
-
 npx prisma db push
 npm run db:seed
 ```
 
+Crea además un `.env` en la carpeta con `DATABASE_URL`, `DIRECT_URL` y
+`JWT_SECRET`. Está en `.gitignore`, así que no se sube al repo, y te sirve
+también para `npm run dev` local. En `.env`, quita `channel_binding=require` del
+`DATABASE_URL`: no funciona bien con el pooler de PgBouncer.
+
 `npm run db:seed` es **idempotente**: puedes ejecutarlo las veces que quieras
 sin duplicar datos.
+
+#### Si tu red bloquea el puerto 5432
+
+Algunas redes (firewall del SO, del ISP o de una empresa) bloquean las
+conexiones salientes al puerto 5432. Prisma no abre socket y falla con:
+
+```
+Error: P1001: Can't reach database server at `ep-xxx.region.aws.neon.tech:5432`
+```
+
+La base de datos está bien; sólo el puerto está cerrado. Neon expone un
+endpoint HTTP en el 443 que habla el mismo SQL, así que el proyecto trae una
+ruta alternativa que no necesita el 5432:
+
+```bash
+npm run db:push:http    # aplica el esquema por https://<host>/sql
+npm run db:seed:http    # carga la rutina y el plan alimentario por HTTP
+```
+
+`db:push:http` genera el DDL con `prisma migrate diff` (que no necesita
+conexión) y lo aplica sentencia por sentencia. Antes de tocar nada comprueba
+si el esquema ya existe, así que es seguro de repetir.
+
+**Esto sólo aplica a tu máquina.** La app en Vercel conecta por 5432 con
+normalidad: Vercel no bloquea ese puerto. Si el error aparece en producción, no
+es este problema.
+
+#### Vercel y `DIRECT_URL`
+
+Si provisionaste la base con la integración de Neon de Vercel, vas a tener
+`DATABASE_URL` y `DATABASE_URL_UNPOOLED` en las variables del proyecto. La
+primera es la pooled (la usa la app en cada request) y la segunda es la directa
+sin pooler (la usa Prisma para cambios de esquema). Para `DIRECT_URL` local,
+copia la segunda.
 
 ### 5. Verificar
 
@@ -212,6 +250,10 @@ npm run test:pwa    # recursos PWA (necesita servidor en marcha)
 npm run test:e2e    # smoke test HTTP completo (necesita servidor en marcha)
 ```
 
+Contra Neon, si el 5432 está bloqueado, el test de rachas necesita el mismo
+truco. Levanta el servidor con la variable `DATABASE_URL` y el test corre
+igual, porque la app en runtime siempre usa 5432.
+
 Los tests de PWA y e2e esperan un servidor en `http://localhost:3000` salvo que
 les pases otra URL:
 
@@ -255,6 +297,8 @@ scripts/
   smoke-test.ts        Prueba end-to-end por HTTP
   streak-test.ts       Pruebas de la lógica de rachas
   pwa-test.ts          Verificación de recursos PWA
+  neon-http.ts         Cliente SQL de Neon por HTTP (puerto 443)
+  db-push-http.ts      Aplica el esquema sin usar el puerto 5432
 ```
 
 ## Notas técnicas

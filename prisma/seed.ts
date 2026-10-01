@@ -1,6 +1,27 @@
 import { PrismaClient, DayKey, DayKind, ExerciseSection, MealType } from '@prisma/client';
+import { PrismaNeon } from '@prisma/adapter-neon';
+import path from 'path';
+import { readEnvFile } from '../scripts/neon-http';
 
-const prisma = new PrismaClient();
+// Por defecto Prisma se conecta por TCP al puerto 5432. Con `--http` usamos el
+// endpoint de Neon en el 443, necesario en redes que bloquean el 5432 saliente.
+const useHttp = process.argv.includes('--http');
+
+function createClient() {
+  if (!useHttp) return new PrismaClient();
+
+  const env = readEnvFile(path.join(process.cwd(), '.env'));
+  const connectionString = process.env.DATABASE_URL ?? env.DATABASE_URL;
+
+  if (!connectionString) {
+    throw new Error('Falta DATABASE_URL (en la terminal o en .env) para usar --http');
+  }
+
+  console.log('Conectando por HTTP (puerto 443) en vez de 5432.');
+  return new PrismaClient({ adapter: new PrismaNeon({ connectionString }) });
+}
+
+const prisma = createClient();
 
 const dayKeyByIndex = [DayKey.MON, DayKey.TUE, DayKey.WED, DayKey.THU, DayKey.FRI, DayKey.SAT, DayKey.SUN];
 

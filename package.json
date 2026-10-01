@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
+    "db:push:http": "tsx scripts/db-push-http.ts",
+    "db:seed:http": "tsx prisma/seed.ts --http",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
@@ -23,6 +25,8 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "@prisma/adapter-neon": "^6.19.3",
     "@prisma/client": "^6.1.0",
     "dotenv": "^18.0.5",
     "jose": "^5.9.6",
